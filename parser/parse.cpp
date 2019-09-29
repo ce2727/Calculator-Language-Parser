@@ -71,7 +71,6 @@ void program () {
         default: 
 			report_error("program");
     }
-	std::cout << "FINISH";
 }
 
 void stmt_list () {
@@ -87,7 +86,6 @@ void stmt_list () {
 			stmt_list();
 			break;
 		case t_end: //stmt_list --> epsilon
-			break;
         case t_eof:
             std::cout << "predict stmt_list --> epsilon\n";
             break;          /*  epsilon production */

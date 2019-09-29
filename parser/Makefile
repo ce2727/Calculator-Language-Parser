@@ -8,13 +8,17 @@ parse: parse.o scan.o
 	g++ $(CXXFLAGS) -o parse parse.o scan.o
 
 clean:
-	rm *.o parse
+	rm *.o parse output.txt
 
 test:
-	./parse < testSuccess1.txt > output.txt
-	./parse < testSuccess2.txt 
-	./parse < testError1.txt	
-	./parse < testError2.txt
+	echo "TEST CASE 1: \n" >> output.txt
+	./parse < testSuccess1.txt >> output.txt
+	echo "\nTEST CASE 2: \n" >> output.txt
+	./parse < testSuccess2.txt >> output.txt
+	echo "\nTEST CASE 3: \n" >> output.txt
+	./parse < testError1.txt >> output.txt	
+	echo "\nTEST CASE 4: \n" >> output.txt
+	./parse < testError2.txt >> output.txt
 
 parse.o: scan.h
 scan.o: scan.h
