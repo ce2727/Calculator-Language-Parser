@@ -4,6 +4,8 @@
     dies on invalid input.
     Michael L. Scott, 2008-2019.
 */
+#define P_TREE 1 //Toggles tree printing statements
+#define P_PREDICT 1 //Toggles predict statements
 #include <iostream>
 #include <map>
 #include <list>
@@ -25,32 +27,35 @@ void report_error(string sym) {
 
 void match (token expected) {
     if (input_token == expected) {
+#if P_PREDICT
 		std::cout << "matched " << names[input_token];
         if (input_token == t_id || input_token == t_literal)
             std::cout << ": " << token_image;
         std::cout <<  ("\n");
+#endif
         input_token = scan ();
     }
     else report_error("match");
 }
 
-void program ();
-void stmt_list ();
-void stmt ();
-void expr ();
-void term_tail ();
-void term ();
-void factor_tail ();
-void factor ();
-void add_op ();
-void mul_op ();
-void condition();
+string program ();
+string stmt_list ();
+string stmt ();
+string expr ();
+string term_tail (string t);
+string term ();
+string factor_tail (string f);
+string factor ();
+string add_op ();
+string mul_op ();
+string condition();
 void instantiateFirstSet();
 void instantiateFollowSet();
 void instantiateEPS();
 void checkForErrors(string sym);
 
-void program () {
+string program () {
+	string out = "";
 	checkForErrors("P");
     switch (input_token) {
         case t_id:
@@ -59,18 +64,24 @@ void program () {
 		case t_while:
 		case t_if:
         case t_eof:
+#if P_PREDICT
 			std::cout << "predict program --> stmt_list eof\n";
-            stmt_list ();
+#endif
+			out += "(program";
+            out += stmt_list ();
 			checkForErrors("P");
             match (t_eof);
+			out += "])";
             break;
         default: 
 			report_error("program");
     }
-	std::cout << "FINISH";
+	return out;
 }
 
-void stmt_list () {
+string stmt_list () {
+	string out = "";
+	string sl = "";
 	checkForErrors("SL");
     switch (input_token) {
         case t_id:
@@ -78,12 +89,17 @@ void stmt_list () {
 		case t_while:
 		case t_if:
         case t_write:
+#if P_PREDICT
 			std::cout << "predict stmt_list --> stmt stmt_list\n";
-			stmt();
-			stmt_list();
+#endif
+			out += stmt();
+			sl += stmt_list();
+			out += sl;
 			break;
 		case t_end:
+#if P_PREDICT
             std::cout << "predict stmt_list --> stmt stmt_list\n";
+#endif
 			checkForErrors("SL");
 			match(t_end);
             stmt ();
@@ -91,97 +107,152 @@ void stmt_list () {
             break;
 
         case t_eof:
+#if P_PREDICT
             std::cout << "predict stmt_list --> epsilon\n";
+#endif
             break;          /*  epsilon production */
         default: report_error("stmt_list");
     }
+	return out;
 }
 
-void stmt () {
+string stmt () {
 	checkForErrors("S");
+	string out = "";
     switch (input_token) {
 		case t_if:
+#if P_PREDICT
 			std::cout << "predict stmt --> if condition stmt_list end\n";
+#endif
 			checkForErrors("S");
 			match(t_if);
-			condition();
-			stmt_list();
+			out += "(if ";
+			out += condition();
+			out += ")[";
+			out += stmt_list();
 			checkForErrors("S");
 			match(t_end);
+			out += "])";
 			break;
 		case t_while:
+#if P_PREDICT
 			std::cout << "predict stmt --> while condition stmt_list end\n";
+#endif
+			out += "(while ";
 			checkForErrors("S");
 			match(t_while);
-			condition();
-			stmt_list();
+			out += condition();
+			out += ")[";
+			out += stmt_list();
 			checkForErrors("S");
 			match(t_end);
+			out += "])";
 			break;
         case t_id:
+#if P_PREDICT
             std::cout << "predict stmt --> id gets expr\n";
+#endif
 			checkForErrors("S");
+			out += "(:= \"";
+			out += token_image;
+			out += "\"";
             match (t_id);
 			checkForErrors("S");
             match (t_gets);
-            expr ();
+            out += expr ();
+			out += ")";
             break;
         case t_read:
+#if P_PREDICT
             std::cout << "predict stmt --> read id\n";
+#endif
 			checkForErrors("S");
+			out += "(read ";
             match (t_read);
 			checkForErrors("S");
+			out += "\"";
+			out += token_image;
+			out += "\"";
             match (t_id);
+			out += ")";
             break;
         case t_write:
+#if P_PREDICT
             std::cout << "predict stmt --> write expr\n";
+#endif
 			checkForErrors("S");
+			out += "(write ";
             match (t_write);
-            expr ();
+            out += expr ();
+			out += ")";
             break;
 		default: report_error("stmt");
     }
+	return out;
 }
 
-void condition() {
+string condition() {
+	string out = "(";
+	string expression = "";
 	checkForErrors("C");
 	switch (input_token) {
 	case t_id:
 	case t_literal:
 	case t_lparen:
+#if P_PREDICT
 		std::cout << "predict condition --> expression rule_op expression\n";
-		expr();
+#endif
+		out += "(";
+		expression += expr();
 		checkForErrors("C");
+		out += token_image;
 		match(t_rule);
-		expr();
+		out += expression + " ";
+		out += expr();
 		break;
-	default: report_error("condition");
+	default: 
+		report_error("condition");
 	}
+	return out;
 }
 
-void expr () {
+string expr () {
+	string out = "";
+	string t = "";
+	string ttail = "";
 	checkForErrors("E");
     switch (input_token) {
         case t_id:
         case t_literal:
         case t_lparen:
+#if P_PREDICT
 			std::cout << "predict expr --> term term_tail\n";
-            term ();
-            term_tail ();
+#endif
+            t += term ();
+            ttail += term_tail (t);
+			out += ttail;
+			if (t.compare(ttail) != 0) out += ")";
             break;
         default: report_error ("expression");
     }
+	return out;
 }
 
-void term_tail () {
+string term_tail (string t) {
+	string out = "";
+	string tc = "";
 	checkForErrors("TT");
     switch (input_token) {
         case t_add:
         case t_sub:
+#if P_PREDICT
 			std::cout << "predict term_tail --> add_op term term_tail\n";
-            add_op ();
-            term ();
-            term_tail ();
+#endif
+			out += "(";
+			out += add_op ();
+			out += t + " ";
+			tc += term();
+            out += term_tail (tc);
             break;
         case t_rparen:
         case t_id:
@@ -192,35 +263,57 @@ void term_tail () {
 		case t_rule:
 		case t_end:
         case t_eof:
+#if P_PREDICT
 			std::cout << "predict term_tail --> epsilon\n";
+#endif
+			out += t;
             break;          /*  epsilon production */
-        default: report_error("term_tail");
+        default:
+			out += t;
+			report_error("term_tail");
     }
+	return out;
 }
 
-void term () {
+string term () {
+	string out = "";
+	string f = "";
+	string ft = "";
 	checkForErrors("T");
     switch (input_token) {
         case t_id:
         case t_literal:
         case t_lparen:
+#if P_PREDICT
 			std::cout << "predict term --> factor factor_tail\n";
-            factor ();
-            factor_tail ();
+#endif
+            f += factor ();
+            ft += factor_tail (f);
+			out += ft;
+			if (f.compare(ft) != 0) out += ")";
             break;
         default: report_error("term");
     }
+	return out;
 }
 
-void factor_tail () {
+string factor_tail (string f) {
+	string out = "";
+	string ft = "";
+	string fc = "";
 	checkForErrors("FT");
     switch (input_token) {
         case t_mul:
         case t_div:
+#if P_PREDICT
 			std::cout << "predict factor_tail --> mul_op factor factor_tail\n";
-            mul_op ();
-            factor ();
-            factor_tail ();
+#endif
+			out += "(";
+			out += mul_op ();
+			out += f + " ";
+            fc += factor ();
+            ft += factor_tail (fc);
+			out += ft;
             break;
         case t_add:
         case t_sub:
@@ -233,69 +326,105 @@ void factor_tail () {
 		case t_rule:
 		case t_end:
         case t_eof:
+#if P_PREDICT
 			std::cout << "predict factor_tail --> epsilon\n";
+#endif
+			out += f;
             break;          /*  epsilon production */
         default: report_error("factor_tail");
     }
+	return out;
 }
 
-void factor () {
+string factor () {
+	string out = "";
 	checkForErrors("F");
     switch (input_token) {
         case t_id :
+#if P_PREDICT
 			std::cout << "predict factor --> id\n";
+#endif
+			out += "(id \"";
+			out += token_image;
+			out += "\")";
 			checkForErrors("F");
             match (t_id);
             break;
         case t_literal:
+#if P_PREDICT
 			std::cout << "predict factor --> literal\n";
+#endif
+			out += "(id \"";
+			out += token_image;
+			out += "\")";
 			checkForErrors("F");
             match (t_literal);
             break;
         case t_lparen:
+#if P_PREDICT
 			std::cout << "predict factor --> lparen expr rparen\n";
+#endif
 			checkForErrors("F");
             match (t_lparen);
-            expr ();
+			out += "(";
+            out += expr ();
 			checkForErrors("F");
             match (t_rparen);
+			out += ")";
             break;
         default: report_error("factor");
     }
+	return out;
 }
 
-void add_op () {
+string add_op () {
+	string out = "";
 	checkForErrors("ao");
     switch (input_token) {
         case t_add:
+#if P_PREDICT
 			std::cout << "predict add_op --> add\n";
+#endif
+			out += "+ ";
 			checkForErrors("ao");
             match (t_add);
             break;
         case t_sub:
+#if P_PREDICT
 			std::cout << "predict add_op --> sub\n";
+#endif
+			out += "- ";
 			checkForErrors("ao");
             match (t_sub);
             break;
         default: report_error("add_op");
     }
+	return out;
 }
 
-void mul_op () {
+string mul_op () {
+	string out = "";
 	checkForErrors("mo");
     switch (input_token) {
         case t_mul:
+#if P_PREDICT
 			std::cout << "predict mul_op --> mul\n";
+#endif
+			out += "* ";
 			checkForErrors("mo");
             match (t_mul);
             break;
         case t_div:
+#if P_PREDICT
             std::cout <<  "predict mul_op --> div\n";
+#endif
+			out += "/ ";
 			checkForErrors("mo");
             match (t_div);
             break;
         default: report_error("mul_op");
     }
+	return out;
 }
 
 void instantiateFirstSet() {
@@ -395,6 +524,9 @@ int main () {
 	instantiateFollowSet();
 	instantiateEPS();
     input_token = scan ();
-    program ();
+	string tree = program();
+#if P_TREE
+    cout << tree;
+#endif
     return 0;
 }
