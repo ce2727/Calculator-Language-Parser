@@ -17,11 +17,13 @@ const char* names[] = {"read", "write", "id", "literal", "gets",
                        "add", "sub", "mul", "div", "lparen", "rparen", "eof", "if", "while", "end", "rule"};
 
 static token input_token;
+static bool broken = false;
 std::map<string, list<token> > first;
 map<string, list<token> > follow;
 map<string, bool> eps;
 
 void report_error(string sym) {
+	broken = true;
 	std::cout << "syntax error found in: " << sym << endl;
 }
 
@@ -68,11 +70,10 @@ string program () {
 #if P_PREDICT
 			std::cout << "predict program --> stmt_list eof\n";
 #endif
-			out += "(program";
+			out += "(program [";
             out += stmt_list ();
-			checkForErrors("P");
 			if(checkForToken(t_eof) == true){
-				return;
+				return "";
 			}
             match (t_eof);
 			out += "])";
@@ -124,9 +125,8 @@ string stmt () {
 			out += condition();
 			out += ")[";
 			out += stmt_list();
-			checkForErrors("S");
 			if(checkForToken(t_end) == true){
-				return;
+				return "";
 			}
 			match(t_end);
 			out += "])";
@@ -142,7 +142,7 @@ string stmt () {
 			out += stmt_list();
 
 			if(checkForToken(t_end) == true){
-				return;
+				return "";
 			}
 			match(t_end);
 			out += "])";
@@ -156,7 +156,7 @@ string stmt () {
 			out += "\"";
             match (t_id);
 			if(checkForToken(t_gets) == true) {
-				return;
+				return "";
 			}
             match (t_gets);
             out += expr ();
@@ -172,7 +172,7 @@ string stmt () {
 			out += token_image;
 			out += "\"";
 			if(checkForToken(t_id) == true){
-				return;
+				return "";
 			}
             match (t_id);
 			out += ")";
@@ -205,9 +205,8 @@ string condition() {
 		out += "(";
 		expression += expr();
 		out += token_image;
-		expr();
 		if(checkForToken(t_rule) == true){
-			return;
+			return "";
 		}
 		match(t_rule);
 		out += expression + " ";
@@ -369,7 +368,7 @@ string factor () {
 			out += "(";
             out += expr ();
 			if(checkForToken(t_rparen) == true){
-				return;
+				return "";
 			}
             match (t_rparen);
 			out += ")";
@@ -536,7 +535,8 @@ int main () {
     input_token = scan ();
 	string tree = program();
 #if P_TREE
-    cout << tree;
+	if (!broken) { cout << tree; }
+	else cout << "Syntax error detected, no tree to print.";
 #endif
     return 0;
 }
