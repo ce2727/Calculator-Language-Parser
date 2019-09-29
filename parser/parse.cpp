@@ -4,6 +4,7 @@
     dies on invalid input.
     Michael L. Scott, 2008-2019.
 */
+
 #include <iostream>
 #include <map>
 #include <list>
@@ -48,7 +49,8 @@ void condition();
 void instantiateFirstSet();
 void instantiateFollowSet();
 void instantiateEPS();
-void checkForErrors(string sym);
+bool checkForErrors(string sym);
+bool checkForToken(token tok);
 
 void program () {
 	checkForErrors("P");
@@ -61,7 +63,9 @@ void program () {
         case t_eof:
 			std::cout << "predict program --> stmt_list eof\n";
             stmt_list ();
-			checkForErrors("P");
+			if(checkForToken(t_eof) == true){
+				return;
+			}
             match (t_eof);
             break;
         default: 
@@ -82,14 +86,8 @@ void stmt_list () {
 			stmt();
 			stmt_list();
 			break;
-		case t_end:
-            std::cout << "predict stmt_list --> stmt stmt_list\n";
-			checkForErrors("SL");
-			match(t_end);
-            stmt ();
-            stmt_list ();
-            break;
-
+		case t_end: //stmt_list --> epsilon
+			break;
         case t_eof:
             std::cout << "predict stmt_list --> epsilon\n";
             break;          /*  epsilon production */
@@ -102,40 +100,48 @@ void stmt () {
     switch (input_token) {
 		case t_if:
 			std::cout << "predict stmt --> if condition stmt_list end\n";
-			checkForErrors("S");
+			
 			match(t_if);
 			condition();
 			stmt_list();
-			checkForErrors("S");
+			if(checkForToken(t_end) == true){
+				return;
+			}
 			match(t_end);
 			break;
 		case t_while:
 			std::cout << "predict stmt --> while condition stmt_list end\n";
-			checkForErrors("S");
+		
 			match(t_while);
 			condition();
 			stmt_list();
-			checkForErrors("S");
+			if(checkForToken(t_end) == true){
+				return;
+			}
 			match(t_end);
 			break;
         case t_id:
             std::cout << "predict stmt --> id gets expr\n";
-			checkForErrors("S");
+		
             match (t_id);
-			checkForErrors("S");
+			if(checkForToken(t_gets) == true) {
+				return;
+			}
             match (t_gets);
             expr ();
             break;
         case t_read:
             std::cout << "predict stmt --> read id\n";
-			checkForErrors("S");
+			
             match (t_read);
-			checkForErrors("S");
+			if(checkForToken(t_id) == true){
+				return;
+			}
             match (t_id);
             break;
         case t_write:
             std::cout << "predict stmt --> write expr\n";
-			checkForErrors("S");
+			
             match (t_write);
             expr ();
             break;
@@ -151,7 +157,9 @@ void condition() {
 	case t_lparen:
 		std::cout << "predict condition --> expression rule_op expression\n";
 		expr();
-		checkForErrors("C");
+		if(checkForToken(t_rule) == true){
+			return;
+		}
 		match(t_rule);
 		expr();
 		break;
@@ -244,20 +252,22 @@ void factor () {
     switch (input_token) {
         case t_id :
 			std::cout << "predict factor --> id\n";
-			checkForErrors("F");
+			
             match (t_id);
             break;
         case t_literal:
 			std::cout << "predict factor --> literal\n";
-			checkForErrors("F");
+			
             match (t_literal);
             break;
         case t_lparen:
 			std::cout << "predict factor --> lparen expr rparen\n";
-			checkForErrors("F");
+			
             match (t_lparen);
             expr ();
-			checkForErrors("F");
+			if(checkForToken(t_rparen) == true){
+				return;
+			}
             match (t_rparen);
             break;
         default: report_error("factor");
@@ -269,12 +279,12 @@ void add_op () {
     switch (input_token) {
         case t_add:
 			std::cout << "predict add_op --> add\n";
-			checkForErrors("ao");
+		
             match (t_add);
             break;
         case t_sub:
 			std::cout << "predict add_op --> sub\n";
-			checkForErrors("ao");
+		
             match (t_sub);
             break;
         default: report_error("add_op");
@@ -286,12 +296,12 @@ void mul_op () {
     switch (input_token) {
         case t_mul:
 			std::cout << "predict mul_op --> mul\n";
-			checkForErrors("mo");
+		
             match (t_mul);
             break;
         case t_div:
             std::cout <<  "predict mul_op --> div\n";
-			checkForErrors("mo");
+		
             match (t_div);
             break;
         default: report_error("mul_op");
@@ -299,7 +309,6 @@ void mul_op () {
 }
 
 void instantiateFirstSet() {
-	//should P_List and SL_List include epsilon? if so how
 	list<token> P_List = { t_eof, t_id, t_read, t_write, t_if, t_while };
 	first.insert({ "P", P_List });
 	list<token> SL_List = { t_id, t_read, t_write, t_if, t_while };
@@ -314,9 +323,9 @@ void instantiateFirstSet() {
 	first.insert({ "T", T_List });
 	list<token> F_List = { t_lparen, t_id, t_literal };
 	first.insert({ "F", F_List });
-	list<token> TT_List = { t_add, t_sub };//should include epsilon?
+	list<token> TT_List = { t_add, t_sub };
 	first.insert({ "TT", TT_List });
-	list<token> FT_List = { t_mul, t_div };//should include epsilon?
+	list<token> FT_List = { t_mul, t_div };
 	first.insert({ "FT", FT_List });
 	list<token> ro_List = { t_rule };
 	first.insert({ "ro", ro_List });
@@ -368,12 +377,12 @@ void instantiateEPS() {
 	eps.insert({ "mo", false });
 }
 
-void checkForErrors(string sym) {
+bool checkForErrors(string sym) {
 	list<token> firstSet = first[sym];
 	list<token> followSet = follow[sym];
 	bool EPS = eps[sym];
 	bool containsInFirst = (find(firstSet.begin(), firstSet.end(), input_token) != firstSet.end());
-
+	bool retBool = false;
 	if (!(containsInFirst || EPS)) {
 		report_error("check");
 		bool containsInFollow;
@@ -383,11 +392,24 @@ void checkForErrors(string sym) {
 			containsInFirst = (find(firstSet.begin(), firstSet.end(), input_token) != firstSet.end());
 			containsInFollow = (find(followSet.begin(), followSet.end(), input_token) != followSet.end());
 			eof = (input_token == t_eof);
+			if(containsInFirst == false && containsInFollow == true){
+				retBool = true;
+			}
 		} while (!(containsInFirst || containsInFollow || eof));
 	}
 	else {
-		return;
+		return false;
 	}
+	return retBool;
+}
+//returns true if the input token is NOT the expected token
+bool checkForToken(token tok) {
+	if(input_token == tok){
+		return false;
+	}else{
+		return true;
+	}
+	
 }
 
 int main () {

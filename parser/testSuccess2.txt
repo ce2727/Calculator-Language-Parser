@@ -1,0 +1,8 @@
+read X
+while X > 0
+    Y := 2
+    if Y >= 2
+        write X
+        X := 0
+    end
+end        
