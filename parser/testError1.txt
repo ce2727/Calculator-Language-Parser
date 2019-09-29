@@ -1,1 +1,5 @@
-read 2 n write n
+read n X
+write n
+a := 3
+if > 9 
+end

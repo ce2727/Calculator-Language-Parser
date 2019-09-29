@@ -18,3 +18,10 @@ You can also use your own test files(after doing ‘make’) by typing ‘./pars
 
 Type ‘make clean’ to clean the directory of all the junk. 
 
+Strategy:
+We implemented Wirth’s algorithm using hard-coded first, follow and EPS sets for the provided calculator language.
+
+Known errors:
+Our tree isn’t printing the rule operators, due to a preexisting limitation in the provided scanner.
+
+

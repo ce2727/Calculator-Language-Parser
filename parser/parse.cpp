@@ -5,7 +5,7 @@
     Michael L. Scott, 2008-2019.
 */
 #define P_TREE 1 //Toggles tree printing statements
-#define P_PREDICT 1 //Toggles predict statements
+#define P_PREDICT 0 //Toggles predict statements
 #include <iostream>
 #include <map>
 #include <list>
@@ -73,6 +73,7 @@ string program () {
 			out += "(program [";
             out += stmt_list ();
 			if(checkForToken(t_eof) == true){
+				report_error("P");
 				return "";
 			}
             match (t_eof);
@@ -126,6 +127,7 @@ string stmt () {
 			out += ")[";
 			out += stmt_list();
 			if(checkForToken(t_end) == true){
+				report_error("S");
 				return "";
 			}
 			match(t_end);
@@ -142,6 +144,7 @@ string stmt () {
 			out += stmt_list();
 
 			if(checkForToken(t_end) == true){
+				report_error("S");
 				return "";
 			}
 			match(t_end);
@@ -156,6 +159,7 @@ string stmt () {
 			out += "\"";
             match (t_id);
 			if(checkForToken(t_gets) == true) {
+				report_error("S");
 				return "";
 			}
             match (t_gets);
@@ -172,6 +176,7 @@ string stmt () {
 			out += token_image;
 			out += "\"";
 			if(checkForToken(t_id) == true){
+				report_error("S");
 				return "";
 			}
             match (t_id);
@@ -206,6 +211,7 @@ string condition() {
 		expression += expr();
 		out += token_image;
 		if(checkForToken(t_rule) == true){
+			report_error("C");
 			return "";
 		}
 		match(t_rule);
@@ -368,6 +374,7 @@ string factor () {
 			out += "(";
             out += expr ();
 			if(checkForToken(t_rparen) == true){
+				report_error("F");
 				return "";
 			}
             match (t_rparen);
@@ -500,7 +507,7 @@ bool checkForErrors(string sym) {
 	bool containsInFirst = (find(firstSet.begin(), firstSet.end(), input_token) != firstSet.end());
 	bool retBool = false;
 	if (!(containsInFirst || EPS)) {
-		report_error("check");
+		report_error(sym);
 		bool containsInFollow;
 		bool eof;
 		do {
@@ -523,9 +530,9 @@ bool checkForToken(token tok) {
 	if(input_token == tok){
 		return false;
 	}else{
+		//report_error("");
 		return true;
 	}
-	
 }
 
 int main () {
@@ -535,8 +542,8 @@ int main () {
     input_token = scan ();
 	string tree = program();
 #if P_TREE
-	if (!broken) { cout << tree; }
-	else cout << "Syntax error detected, no tree to print.";
+	if (!broken) { cout << "TREE: " << endl << tree << endl; }
+	else cout << "End of parse, syntax errors detected, no tree to print." << endl;
 #endif
     return 0;
 }
