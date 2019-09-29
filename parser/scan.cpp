@@ -87,7 +87,7 @@ token scan() {
 				return t_rule;
 			}
         default:
-            std::cerr << "error\n";
+            std::cerr << "big oof\n";
             exit(1);
     }
 }

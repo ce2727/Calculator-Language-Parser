@@ -1,0 +1,1 @@
+read 2 n write n

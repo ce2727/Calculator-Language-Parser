@@ -52,7 +52,8 @@ string condition();
 void instantiateFirstSet();
 void instantiateFollowSet();
 void instantiateEPS();
-void checkForErrors(string sym);
+bool checkForErrors(string sym);
+bool checkForToken(token tok);
 
 string program () {
 	string out = "";
@@ -70,6 +71,9 @@ string program () {
 			out += "(program";
             out += stmt_list ();
 			checkForErrors("P");
+			if(checkForToken(t_eof) == true){
+				return;
+			}
             match (t_eof);
 			out += "])";
             break;
@@ -96,16 +100,7 @@ string stmt_list () {
 			sl += stmt_list();
 			out += sl;
 			break;
-		case t_end:
-#if P_PREDICT
-            std::cout << "predict stmt_list --> stmt stmt_list\n";
-#endif
-			checkForErrors("SL");
-			match(t_end);
-            stmt ();
-            stmt_list ();
-            break;
-
+		case t_end: //stmt_list --> epsilon
         case t_eof:
 #if P_PREDICT
             std::cout << "predict stmt_list --> epsilon\n";
@@ -124,13 +119,15 @@ string stmt () {
 #if P_PREDICT
 			std::cout << "predict stmt --> if condition stmt_list end\n";
 #endif
-			checkForErrors("S");
 			match(t_if);
 			out += "(if ";
 			out += condition();
 			out += ")[";
 			out += stmt_list();
 			checkForErrors("S");
+			if(checkForToken(t_end) == true){
+				return;
+			}
 			match(t_end);
 			out += "])";
 			break;
@@ -139,12 +136,14 @@ string stmt () {
 			std::cout << "predict stmt --> while condition stmt_list end\n";
 #endif
 			out += "(while ";
-			checkForErrors("S");
 			match(t_while);
 			out += condition();
 			out += ")[";
 			out += stmt_list();
-			checkForErrors("S");
+
+			if(checkForToken(t_end) == true){
+				return;
+			}
 			match(t_end);
 			out += "])";
 			break;
@@ -152,12 +151,13 @@ string stmt () {
 #if P_PREDICT
             std::cout << "predict stmt --> id gets expr\n";
 #endif
-			checkForErrors("S");
 			out += "(:= \"";
 			out += token_image;
 			out += "\"";
             match (t_id);
-			checkForErrors("S");
+			if(checkForToken(t_gets) == true) {
+				return;
+			}
             match (t_gets);
             out += expr ();
 			out += ")";
@@ -166,13 +166,14 @@ string stmt () {
 #if P_PREDICT
             std::cout << "predict stmt --> read id\n";
 #endif
-			checkForErrors("S");
 			out += "(read ";
             match (t_read);
-			checkForErrors("S");
 			out += "\"";
 			out += token_image;
 			out += "\"";
+			if(checkForToken(t_id) == true){
+				return;
+			}
             match (t_id);
 			out += ")";
             break;
@@ -180,7 +181,6 @@ string stmt () {
 #if P_PREDICT
             std::cout << "predict stmt --> write expr\n";
 #endif
-			checkForErrors("S");
 			out += "(write ";
             match (t_write);
             out += expr ();
@@ -204,8 +204,11 @@ string condition() {
 #endif
 		out += "(";
 		expression += expr();
-		checkForErrors("C");
 		out += token_image;
+		expr();
+		if(checkForToken(t_rule) == true){
+			return;
+		}
 		match(t_rule);
 		out += expression + " ";
 		out += expr();
@@ -347,7 +350,6 @@ string factor () {
 			out += "(id \"";
 			out += token_image;
 			out += "\")";
-			checkForErrors("F");
             match (t_id);
             break;
         case t_literal:
@@ -357,18 +359,18 @@ string factor () {
 			out += "(id \"";
 			out += token_image;
 			out += "\")";
-			checkForErrors("F");
             match (t_literal);
             break;
         case t_lparen:
 #if P_PREDICT
 			std::cout << "predict factor --> lparen expr rparen\n";
 #endif
-			checkForErrors("F");
             match (t_lparen);
 			out += "(";
             out += expr ();
-			checkForErrors("F");
+			if(checkForToken(t_rparen) == true){
+				return;
+			}
             match (t_rparen);
 			out += ")";
             break;
@@ -386,7 +388,6 @@ string add_op () {
 			std::cout << "predict add_op --> add\n";
 #endif
 			out += "+ ";
-			checkForErrors("ao");
             match (t_add);
             break;
         case t_sub:
@@ -394,7 +395,6 @@ string add_op () {
 			std::cout << "predict add_op --> sub\n";
 #endif
 			out += "- ";
-			checkForErrors("ao");
             match (t_sub);
             break;
         default: report_error("add_op");
@@ -411,7 +411,6 @@ string mul_op () {
 			std::cout << "predict mul_op --> mul\n";
 #endif
 			out += "* ";
-			checkForErrors("mo");
             match (t_mul);
             break;
         case t_div:
@@ -419,7 +418,6 @@ string mul_op () {
             std::cout <<  "predict mul_op --> div\n";
 #endif
 			out += "/ ";
-			checkForErrors("mo");
             match (t_div);
             break;
         default: report_error("mul_op");
@@ -428,7 +426,6 @@ string mul_op () {
 }
 
 void instantiateFirstSet() {
-	//should P_List and SL_List include epsilon? if so how
 	list<token> P_List = { t_eof, t_id, t_read, t_write, t_if, t_while };
 	first.insert({ "P", P_List });
 	list<token> SL_List = { t_id, t_read, t_write, t_if, t_while };
@@ -443,9 +440,9 @@ void instantiateFirstSet() {
 	first.insert({ "T", T_List });
 	list<token> F_List = { t_lparen, t_id, t_literal };
 	first.insert({ "F", F_List });
-	list<token> TT_List = { t_add, t_sub };//should include epsilon?
+	list<token> TT_List = { t_add, t_sub };
 	first.insert({ "TT", TT_List });
-	list<token> FT_List = { t_mul, t_div };//should include epsilon?
+	list<token> FT_List = { t_mul, t_div };
 	first.insert({ "FT", FT_List });
 	list<token> ro_List = { t_rule };
 	first.insert({ "ro", ro_List });
@@ -497,12 +494,12 @@ void instantiateEPS() {
 	eps.insert({ "mo", false });
 }
 
-void checkForErrors(string sym) {
+bool checkForErrors(string sym) {
 	list<token> firstSet = first[sym];
 	list<token> followSet = follow[sym];
 	bool EPS = eps[sym];
 	bool containsInFirst = (find(firstSet.begin(), firstSet.end(), input_token) != firstSet.end());
-
+	bool retBool = false;
 	if (!(containsInFirst || EPS)) {
 		report_error("check");
 		bool containsInFollow;
@@ -512,11 +509,24 @@ void checkForErrors(string sym) {
 			containsInFirst = (find(firstSet.begin(), firstSet.end(), input_token) != firstSet.end());
 			containsInFollow = (find(followSet.begin(), followSet.end(), input_token) != followSet.end());
 			eof = (input_token == t_eof);
+			if(containsInFirst == false && containsInFollow == true){
+				retBool = true;
+			}
 		} while (!(containsInFirst || containsInFollow || eof));
 	}
 	else {
-		return;
+		return false;
 	}
+	return retBool;
+}
+//returns true if the input token is NOT the expected token
+bool checkForToken(token tok) {
+	if(input_token == tok){
+		return false;
+	}else{
+		return true;
+	}
+	
 }
 
 int main () {
